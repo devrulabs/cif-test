@@ -1,131 +1,159 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' *.dynamics.com *.crm.dynamics.com *.dynamics365.com">
-    <title>CIF V2 Test App</title>
+    <title>Dynamics CIF v2 Test Page</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            margin: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .status-box {
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { 
+            border: 1px solid #ccc;
             padding: 15px;
             margin: 10px 0;
-            border-radius: 4px;
-            border: 1px solid #ddd;
+            border-radius: 5px;
         }
-        .error { 
-            background-color: #fde7e9;
-            border-color: #f1707b;
-            color: #d13438;
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
         }
-        .success { 
-            background-color: #dff6dd;
-            border-color: #107c10;
-            color: #107c10;
+        .status.success { background-color: #dff0d8; }
+        .status.error { background-color: #f2dede; }
+        button { 
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
         }
-        .warning {
-            background-color: #fff4ce;
-            border-color: #fdb100;
-            color: #795600;
-        }
-        .info {
-            padding: 15px;
-            line-height: 1.5;
+        #output {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 100px;
             margin-top: 20px;
-        }
-        #log { 
-            margin-top: 20px; 
-            padding: 10px; 
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            height: 150px; 
-            overflow-y: auto;
-            background: #f8f8f8;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>CIF V2 Test Application</h1>
+        <h1>Dynamics CIF v2 Test Page</h1>
         
-        <div id="statusContainer">
-            <!-- Status will be inserted here -->
+        <div id="cifStatus" class="status">Checking CIF status...</div>
+
+        <div class="test-section">
+            <h3>CIF Environment Info</h3>
+            <div id="envInfo">Waiting for CIF initialization...</div>
         </div>
 
-        <div id="log"></div>
+        <div class="test-section">
+            <h3>Test Functions</h3>
+            <button onclick="getEnvironmentInfo()">Get Environment Info</button>
+            <button onclick="getCurrentUser()">Get Current User</button>
+            <button onclick="getFocusedTab()">Get Focused Tab</button>
+        </div>
 
-        <div class="info">
-            <h3>How to use this app:</h3>
-            <ol>
-                <li>Configure this URL as a Channel Provider in Dynamics 365</li>
-                <li>Access the app through Customer Service workspace</li>
-                <li>The status indicators above will show when CIF is properly loaded</li>
-            </ol>
+        <div class="test-section">
+            <h3>Panel Controls</h3>
+            <button onclick="setPanelMode('docked')">Dock Panel</button>
+            <button onclick="setPanelMode('hidden')">Hide Panel</button>
+        </div>
+
+        <div id="output">
+            <strong>Output:</strong><br>
+            <pre id="outputText"></pre>
         </div>
     </div>
 
     <script>
-        function updateStatus() {
-            const statusContainer = document.getElementById('statusContainer');
-            const log = document.getElementById('log');
-            
-            // Check if being loaded directly
-            if (window.self === window.top) {
-                statusContainer.innerHTML = `
-                    <div class="status-box warning">
-                        <h3>⚠️ Direct Access Detected</h3>
-                        <p>This app must be loaded within Dynamics 365 Customer Service workspace.</p>
-                    </div>`;
-                log.innerHTML += `${new Date().toLocaleTimeString()} - App accessed directly. Please load within Dynamics 365.<br>`;
-                return;
-            }
-
-            // Check for Microsoft CIF
-            if (typeof Microsoft === 'undefined' || !Microsoft.CIFramework) {
-                statusContainer.innerHTML = `
-                    <div class="status-box error">
-                        <h3>❌ CIF Not Available</h3>
-                        <p>Microsoft CIF framework not detected. Ensure this app is properly configured as a Channel Provider.</p>
-                    </div>`;
-                log.innerHTML += `${new Date().toLocaleTimeString()} - Microsoft CIF not detected.<br>`;
-                return;
-            }
-
-            // If we got here, try to initialize CIF
-            Microsoft.CIFramework.loaded().then(() => {
-                statusContainer.innerHTML = `
-                    <div class="status-box success">
-                        <h3>✅ CIF Successfully Loaded</h3>
-                        <p>The application is properly loaded and initialized within Dynamics 365.</p>
-                    </div>`;
-                log.innerHTML += `${new Date().toLocaleTimeString()} - CIF initialized successfully.<br>`;
-            }).catch(error => {
-                statusContainer.innerHTML = `
-                    <div class="status-box error">
-                        <h3>❌ CIF Initialization Failed</h3>
-                        <p>Error: ${error.message}</p>
-                    </div>`;
-                log.innerHTML += `${new Date().toLocaleTimeString()} - CIF initialization failed: ${error.message}<br>`;
-            });
+        let Microsoft = window.Microsoft || null;
+        
+        function log(message) {
+            const output = document.getElementById('outputText');
+            output.innerHTML += `${new Date().toISOString()}: ${message}\n`;
         }
 
-        // Check status when page loads
-        window.addEventListener('load', updateStatus);
+        function updateStatus(message, isError = false) {
+            const status = document.getElementById('cifStatus');
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.textContent = message;
+        }
 
-        // Recheck status periodically
-        setInterval(updateStatus, 5000);
+        // Check if we're running inside Dynamics CIF
+        function checkCIFEnvironment() {
+            if (Microsoft && Microsoft.CIFramework) {
+                updateStatus('✅ CIF Available - Running in Dynamics 365');
+                initializeCIF();
+            } else {
+                updateStatus('❌ CIF Not Available - Must be run as a Channel Provider in Dynamics 365', true);
+            }
+        }
+
+        async function initializeCIF() {
+            try {
+                // Get the CIF context
+                const context = await Microsoft.CIFramework.getContext();
+                log(`CIF Context: ${JSON.stringify(context, null, 2)}`);
+                
+                // Set up event listeners
+                Microsoft.CIFramework.addHandler("onClickToAct", (eventData) => {
+                    log(`Click-to-act event received: ${JSON.stringify(eventData)}`);
+                });
+
+                Microsoft.CIFramework.addHandler("onModeChanged", (mode) => {
+                    log(`Panel mode changed to: ${mode}`);
+                });
+
+                Microsoft.CIFramework.addHandler("onPageNavigate", (pageInfo) => {
+                    log(`Navigation event: ${JSON.stringify(pageInfo)}`);
+                });
+
+                document.getElementById('envInfo').innerHTML = 
+                    `Organization: ${context.organizationId}<br>
+                     Client URL: ${context.clientUrl}<br>
+                     Instance: ${context.instanceId}`;
+
+            } catch (error) {
+                log(`Error in CIF initialization: ${error.message}`);
+                updateStatus(`Error: ${error.message}`, true);
+            }
+        }
+
+        async function getEnvironmentInfo() {
+            try {
+                const context = await Microsoft.CIFramework.getContext();
+                log(`Environment Info: ${JSON.stringify(context, null, 2)}`);
+            } catch (error) {
+                log(`Error getting environment info: ${error.message}`);
+            }
+        }
+
+        async function getCurrentUser() {
+            try {
+                const userId = await Microsoft.CIFramework.getUserId();
+                log(`Current User ID: ${userId}`);
+            } catch (error) {
+                log(`Error getting current user: ${error.message}`);
+            }
+        }
+
+        async function getFocusedTab() {
+            try {
+                const focusedTab = await Microsoft.CIFramework.getFocusedTab();
+                log(`Focused Tab: ${JSON.stringify(focusedTab, null, 2)}`);
+            } catch (error) {
+                log(`Error getting focused tab: ${error.message}`);
+            }
+        }
+
+        async function setPanelMode(mode) {
+            try {
+                await Microsoft.CIFramework.setMode(mode);
+                log(`Panel mode set to: ${mode}`);
+            } catch (error) {
+                log(`Error setting panel mode: ${error.message}`);
+            }
+        }
+
+        // Check CIF environment when page loads
+        window.onload = checkCIFEnvironment;
     </script>
 </body>
 </html>
