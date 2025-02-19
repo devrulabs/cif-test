@@ -1,159 +1,213 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Dynamics CIF v2 Test Page</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .test-section { 
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-        .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-        .status.success { background-color: #dff0d8; }
-        .status.error { background-color: #f2dede; }
-        button { 
-            padding: 8px 15px;
-            margin: 5px;
-            cursor: pointer;
-        }
-        #output {
-            background-color: #f5f5f5;
-            padding: 10px;
-            border-radius: 5px;
-            min-height: 100px;
-            margin-top: 20px;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIF v2 Sample</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="container">
-        <h1>Dynamics CIF v2 Test Page</h1>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-4xl mx-auto bg-white rounded shadow p-6">
+        <h1 class="text-2xl font-bold mb-6">CIF v2 API Test Interface</h1>
         
-        <div id="cifStatus" class="status">Checking CIF status...</div>
-
-        <div class="test-section">
-            <h3>CIF Environment Info</h3>
-            <div id="envInfo">Waiting for CIF initialization...</div>
+        <!-- Session Management -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Session Management</h2>
+            <div class="space-y-4">
+                <div>
+                    <button onclick="CIFv2Sample.createSession()" class="bg-blue-500 text-white px-4 py-2 rounded">
+                        Create Session
+                    </button>
+                    <button onclick="CIFv2Sample.getAllSessions()" class="bg-green-500 text-white px-4 py-2 rounded ml-2">
+                        Get All Sessions
+                    </button>
+                </div>
+                <div>
+                    <button onclick="CIFv2Sample.getFocusedSession()" class="bg-purple-500 text-white px-4 py-2 rounded">
+                        Get Focused Session
+                    </button>
+                    <button onclick="CIFv2Sample.setClickToAct()" class="bg-yellow-500 text-white px-4 py-2 rounded ml-2">
+                        Toggle Click-to-Act
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="test-section">
-            <h3>Test Functions</h3>
-            <button onclick="getEnvironmentInfo()">Get Environment Info</button>
-            <button onclick="getCurrentUser()">Get Current User</button>
-            <button onclick="getFocusedTab()">Get Focused Tab</button>
+        <!-- Search Panel -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Customer Search</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Search Type</label>
+                    <select id="searchType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="contact">Contact</option>
+                        <option value="account">Account</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Search Text</label>
+                    <input type="text" id="searchText" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="Enter search text">
+                </div>
+            </div>
+            <button onclick="CIFv2Sample.searchRecords()" class="mt-4 bg-indigo-500 text-white px-4 py-2 rounded">
+                Search Records
+            </button>
         </div>
 
-        <div class="test-section">
-            <h3>Panel Controls</h3>
-            <button onclick="setPanelMode('docked')">Dock Panel</button>
-            <button onclick="setPanelMode('hidden')">Hide Panel</button>
+        <!-- Panel Interaction -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Panel Operations</h2>
+            <div class="space-y-4">
+                <div>
+                    <button onclick="CIFv2Sample.minimizePanel()" class="bg-gray-500 text-white px-4 py-2 rounded">
+                        Minimize Panel
+                    </button>
+                    <button onclick="CIFv2Sample.maximizePanel()" class="bg-gray-500 text-white px-4 py-2 rounded ml-2">
+                        Maximize Panel
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div id="output">
-            <strong>Output:</strong><br>
-            <pre id="outputText"></pre>
+        <!-- Results Panel -->
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold mb-4">Results</h2>
+            <pre id="results" class="bg-gray-100 p-4 rounded overflow-auto max-h-60"></pre>
         </div>
     </div>
 
     <script>
-        let Microsoft = window.Microsoft || null;
-        
-        function log(message) {
-            const output = document.getElementById('outputText');
-            output.innerHTML += `${new Date().toISOString()}: ${message}\n`;
-        }
+        const CIFv2Sample = {
+            // Initialize the application
+            init: function() {
+                try {
+                    this.addEventHandlers();
+                    this.logMessage('CIF v2 Sample initialized');
+                } catch (error) {
+                    this.logMessage('Initialization error: ' + error.message);
+                }
+            },
 
-        function updateStatus(message, isError = false) {
-            const status = document.getElementById('cifStatus');
-            status.className = `status ${isError ? 'error' : 'success'}`;
-            status.textContent = message;
-        }
+            // Add event handlers
+            addEventHandlers: function() {
+                if (typeof Microsoft !== 'undefined' && Microsoft.DynamicsCRM && Microsoft.DynamicsCRM.CIFramework) {
+                    Microsoft.DynamicsCRM.CIFramework.addHandler("onClickToAct", this.onClickToAct.bind(this));
+                    Microsoft.DynamicsCRM.CIFramework.addHandler("onModeChanged", this.onModeChanged.bind(this));
+                    Microsoft.DynamicsCRM.CIFramework.addHandler("onPanelResize", this.onPanelResize.bind(this));
+                    this.logMessage('Event handlers registered');
+                } else {
+                    this.logMessage('CIF Framework not detected - running in standalone mode');
+                }
+            },
 
-        // Check if we're running inside Dynamics CIF
-        function checkCIFEnvironment() {
-            if (Microsoft && Microsoft.CIFramework) {
-                updateStatus('✅ CIF Available - Running in Dynamics 365');
-                initializeCIF();
-            } else {
-                updateStatus('❌ CIF Not Available - Must be run as a Channel Provider in Dynamics 365', true);
+            // Session Management Functions
+            createSession: async function() {
+                try {
+                    const sessionParams = {
+                        templateName: "default_session",
+                        templateParameters: {
+                            sessionType: "sample",
+                            timestamp: new Date().toISOString()
+                        }
+                    };
+
+                    const sessionId = await Microsoft.DynamicsCRM.CIFramework.createSession(sessionParams);
+                    this.logMessage('Session created: ' + sessionId);
+                } catch (error) {
+                    this.logMessage('Error creating session: ' + error.message);
+                }
+            },
+
+            getAllSessions: async function() {
+                try {
+                    const sessions = await Microsoft.DynamicsCRM.CIFramework.getAllSessions();
+                    this.logMessage('Active sessions: ' + JSON.stringify(sessions));
+                } catch (error) {
+                    this.logMessage('Error getting sessions: ' + error.message);
+                }
+            },
+
+            getFocusedSession: async function() {
+                try {
+                    const focusedSession = await Microsoft.DynamicsCRM.CIFramework.getFocusedSession();
+                    this.logMessage('Focused session: ' + focusedSession);
+                } catch (error) {
+                    this.logMessage('Error getting focused session: ' + error.message);
+                }
+            },
+
+            setClickToAct: async function() {
+                try {
+                    await Microsoft.DynamicsCRM.CIFramework.setClickToAct(true);
+                    this.logMessage('Click-to-Act enabled');
+                } catch (error) {
+                    this.logMessage('Error setting Click-to-Act: ' + error.message);
+                }
+            },
+
+            // Search Functions
+            searchRecords: async function() {
+                try {
+                    const searchType = document.getElementById('searchType').value;
+                    const searchText = document.getElementById('searchText').value;
+
+                    const searchParams = {
+                        entityName: searchType,
+                        filter: `contains(name,'${searchText}')`,
+                        fields: ["name", "emailaddress1", "telephone1"]
+                    };
+
+                    const results = await Microsoft.DynamicsCRM.CIFramework.searchAndOpenRecords(searchParams);
+                    this.logMessage('Search results: ' + JSON.stringify(results));
+                } catch (error) {
+                    this.logMessage('Error searching records: ' + error.message);
+                }
+            },
+
+            // Panel Operations
+            minimizePanel: async function() {
+                try {
+                    await Microsoft.DynamicsCRM.CIFramework.minimizePanel();
+                    this.logMessage('Panel minimized');
+                } catch (error) {
+                    this.logMessage('Error minimizing panel: ' + error.message);
+                }
+            },
+
+            maximizePanel: async function() {
+                try {
+                    await Microsoft.DynamicsCRM.CIFramework.maximizePanel();
+                    this.logMessage('Panel maximized');
+                } catch (error) {
+                    this.logMessage('Error maximizing panel: ' + error.message);
+                }
+            },
+
+            // Event Handlers
+            onClickToAct: function(eventData) {
+                this.logMessage('Click-to-Act event: ' + JSON.stringify(eventData));
+            },
+
+            onModeChanged: function(eventData) {
+                this.logMessage('Mode changed: ' + JSON.stringify(eventData));
+            },
+
+            onPanelResize: function(eventData) {
+                this.logMessage('Panel resized: ' + JSON.stringify(eventData));
+            },
+
+            // Utility Functions
+            logMessage: function(message) {
+                const resultsDiv = document.getElementById('results');
+                const timestamp = new Date().toISOString();
+                resultsDiv.innerHTML = `[${timestamp}] ${message}\n` + resultsDiv.innerHTML;
             }
-        }
+        };
 
-        async function initializeCIF() {
-            try {
-                // Get the CIF context
-                const context = await Microsoft.CIFramework.getContext();
-                log(`CIF Context: ${JSON.stringify(context, null, 2)}`);
-                
-                // Set up event listeners
-                Microsoft.CIFramework.addHandler("onClickToAct", (eventData) => {
-                    log(`Click-to-act event received: ${JSON.stringify(eventData)}`);
-                });
-
-                Microsoft.CIFramework.addHandler("onModeChanged", (mode) => {
-                    log(`Panel mode changed to: ${mode}`);
-                });
-
-                Microsoft.CIFramework.addHandler("onPageNavigate", (pageInfo) => {
-                    log(`Navigation event: ${JSON.stringify(pageInfo)}`);
-                });
-
-                document.getElementById('envInfo').innerHTML = 
-                    `Organization: ${context.organizationId}<br>
-                     Client URL: ${context.clientUrl}<br>
-                     Instance: ${context.instanceId}`;
-
-            } catch (error) {
-                log(`Error in CIF initialization: ${error.message}`);
-                updateStatus(`Error: ${error.message}`, true);
-            }
-        }
-
-        async function getEnvironmentInfo() {
-            try {
-                const context = await Microsoft.CIFramework.getContext();
-                log(`Environment Info: ${JSON.stringify(context, null, 2)}`);
-            } catch (error) {
-                log(`Error getting environment info: ${error.message}`);
-            }
-        }
-
-        async function getCurrentUser() {
-            try {
-                const userId = await Microsoft.CIFramework.getUserId();
-                log(`Current User ID: ${userId}`);
-            } catch (error) {
-                log(`Error getting current user: ${error.message}`);
-            }
-        }
-
-        async function getFocusedTab() {
-            try {
-                const focusedTab = await Microsoft.CIFramework.getFocusedTab();
-                log(`Focused Tab: ${JSON.stringify(focusedTab, null, 2)}`);
-            } catch (error) {
-                log(`Error getting focused tab: ${error.message}`);
-            }
-        }
-
-        async function setPanelMode(mode) {
-            try {
-                await Microsoft.CIFramework.setMode(mode);
-                log(`Panel mode set to: ${mode}`);
-            } catch (error) {
-                log(`Error setting panel mode: ${error.message}`);
-            }
-        }
-
-        // Check CIF environment when page loads
-        window.onload = checkCIFEnvironment;
+        // Initialize when the page loads
+        window.onload = function() {
+            CIFv2Sample.init();
+        };
     </script>
 </body>
 </html>
