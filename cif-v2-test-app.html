@@ -3,60 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIF V2 Test Application</title>
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' *.dynamics.com *.crm.dynamics.com *.dynamics365.com">
+    <title>CIF V2 Test App</title>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            margin: 20px;
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 20px; 
             background-color: #f5f5f5;
         }
         .container {
             max-width: 800px;
             margin: 0 auto;
-            background-color: white;
+            background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .section {
-            margin-bottom: 20px;
+        .status-box {
             padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .section h2 {
-            margin-top: 0;
-            color: #333;
-        }
-        button {
-            background-color: #0078d4;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            margin: 5px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #106ebe;
-        }
-        .log-container {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f8f8f8;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .input-group {
             margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid #ddd;
         }
-        input, select {
-            padding: 6px;
-            margin: 5px;
+        .error { 
+            background-color: #fde7e9;
+            border-color: #f1707b;
+            color: #d13438;
+        }
+        .success { 
+            background-color: #dff6dd;
+            border-color: #107c10;
+            color: #107c10;
+        }
+        .warning {
+            background-color: #fff4ce;
+            border-color: #fdb100;
+            color: #795600;
+        }
+        .info {
+            padding: 15px;
+            line-height: 1.5;
+            margin-top: 20px;
+        }
+        #log { 
+            margin-top: 20px; 
+            padding: 10px; 
             border: 1px solid #ddd;
             border-radius: 4px;
+            height: 150px; 
+            overflow-y: auto;
+            background: #f8f8f8;
         }
     </style>
 </head>
@@ -64,150 +60,72 @@
     <div class="container">
         <h1>CIF V2 Test Application</h1>
         
-        <div class="section">
-            <h2>Initialization</h2>
-            <button onclick="initializeCIF()">Initialize CIF</button>
-            <button onclick="getEnvironment()">Get Environment</button>
+        <div id="statusContainer">
+            <!-- Status will be inserted here -->
         </div>
 
-        <div class="section">
-            <h2>Session Management</h2>
-            <button onclick="startSession()">Start Session</button>
-            <button onclick="endSession()">End Session</button>
-            <div class="input-group">
-                <input type="text" id="sessionParams" placeholder="Session Parameters (JSON)">
-            </div>
-        </div>
+        <div id="log"></div>
 
-        <div class="section">
-            <h2>Interaction Management</h2>
-            <button onclick="createInteraction()">Create Interaction</button>
-            <button onclick="updateInteraction()">Update Interaction</button>
-            <button onclick="endInteraction()">End Interaction</button>
-            <div class="input-group">
-                <input type="text" id="interactionParams" placeholder="Interaction Parameters (JSON)">
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Search & Navigation</h2>
-            <button onclick="searchAndOpenRecords()">Search & Open Records</button>
-            <button onclick="navigateToEntity()">Navigate to Entity</button>
-            <div class="input-group">
-                <input type="text" id="searchParams" placeholder="Search Parameters">
-                <input type="text" id="entityParams" placeholder="Entity Parameters">
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Logging</h2>
-            <div id="logContainer" class="log-container"></div>
+        <div class="info">
+            <h3>How to use this app:</h3>
+            <ol>
+                <li>Configure this URL as a Channel Provider in Dynamics 365</li>
+                <li>Access the app through Customer Service workspace</li>
+                <li>The status indicators above will show when CIF is properly loaded</li>
+            </ol>
         </div>
     </div>
 
     <script>
-        // Initialize Microsoft.CIFramework
-        let cifFramework = null;
-
-        function log(message) {
-            const logContainer = document.getElementById('logContainer');
-            const logEntry = document.createElement('div');
-            logEntry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
-            logContainer.appendChild(logEntry);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-
-        async function initializeCIF() {
-            try {
-                // Wait for the CIF Framework to be available
-                await Microsoft.CIFramework.loaded();
-                cifFramework = Microsoft.CIFramework;
-                log('CIF initialized successfully');
-            } catch (error) {
-                log(`Error initializing CIF: ${error.message}`);
+        function updateStatus() {
+            const statusContainer = document.getElementById('statusContainer');
+            const log = document.getElementById('log');
+            
+            // Check if being loaded directly
+            if (window.self === window.top) {
+                statusContainer.innerHTML = `
+                    <div class="status-box warning">
+                        <h3>⚠️ Direct Access Detected</h3>
+                        <p>This app must be loaded within Dynamics 365 Customer Service workspace.</p>
+                    </div>`;
+                log.innerHTML += `${new Date().toLocaleTimeString()} - App accessed directly. Please load within Dynamics 365.<br>`;
+                return;
             }
-        }
 
-        async function getEnvironment() {
-            try {
-                const envInfo = await cifFramework.getEnvironment();
-                log(`Environment Info: ${JSON.stringify(envInfo)}`);
-            } catch (error) {
-                log(`Error getting environment: ${error.message}`);
+            // Check for Microsoft CIF
+            if (typeof Microsoft === 'undefined' || !Microsoft.CIFramework) {
+                statusContainer.innerHTML = `
+                    <div class="status-box error">
+                        <h3>❌ CIF Not Available</h3>
+                        <p>Microsoft CIF framework not detected. Ensure this app is properly configured as a Channel Provider.</p>
+                    </div>`;
+                log.innerHTML += `${new Date().toLocaleTimeString()} - Microsoft CIF not detected.<br>`;
+                return;
             }
+
+            // If we got here, try to initialize CIF
+            Microsoft.CIFramework.loaded().then(() => {
+                statusContainer.innerHTML = `
+                    <div class="status-box success">
+                        <h3>✅ CIF Successfully Loaded</h3>
+                        <p>The application is properly loaded and initialized within Dynamics 365.</p>
+                    </div>`;
+                log.innerHTML += `${new Date().toLocaleTimeString()} - CIF initialized successfully.<br>`;
+            }).catch(error => {
+                statusContainer.innerHTML = `
+                    <div class="status-box error">
+                        <h3>❌ CIF Initialization Failed</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>`;
+                log.innerHTML += `${new Date().toLocaleTimeString()} - CIF initialization failed: ${error.message}<br>`;
+            });
         }
 
-        async function startSession() {
-            try {
-                const params = JSON.parse(document.getElementById('sessionParams').value || '{}');
-                await cifFramework.startSession(params);
-                log('Session started successfully');
-            } catch (error) {
-                log(`Error starting session: ${error.message}`);
-            }
-        }
+        // Check status when page loads
+        window.addEventListener('load', updateStatus);
 
-        async function endSession() {
-            try {
-                await cifFramework.endSession();
-                log('Session ended successfully');
-            } catch (error) {
-                log(`Error ending session: ${error.message}`);
-            }
-        }
-
-        async function createInteraction() {
-            try {
-                const params = JSON.parse(document.getElementById('interactionParams').value || '{}');
-                const result = await cifFramework.createInteraction(params);
-                log(`Interaction created: ${JSON.stringify(result)}`);
-            } catch (error) {
-                log(`Error creating interaction: ${error.message}`);
-            }
-        }
-
-        async function updateInteraction() {
-            try {
-                const params = JSON.parse(document.getElementById('interactionParams').value || '{}');
-                await cifFramework.updateInteraction(params);
-                log('Interaction updated successfully');
-            } catch (error) {
-                log(`Error updating interaction: ${error.message}`);
-            }
-        }
-
-        async function endInteraction() {
-            try {
-                const params = JSON.parse(document.getElementById('interactionParams').value || '{}');
-                await cifFramework.endInteraction(params);
-                log('Interaction ended successfully');
-            } catch (error) {
-                log(`Error ending interaction: ${error.message}`);
-            }
-        }
-
-        async function searchAndOpenRecords() {
-            try {
-                const searchText = document.getElementById('searchParams').value;
-                const result = await cifFramework.searchAndOpenRecords(searchText);
-                log(`Search results: ${JSON.stringify(result)}`);
-            } catch (error) {
-                log(`Error searching records: ${error.message}`);
-            }
-        }
-
-        async function navigateToEntity() {
-            try {
-                const params = JSON.parse(document.getElementById('entityParams').value || '{}');
-                await cifFramework.navigateToEntity(params.entityName, params.entityId);
-                log('Navigated to entity successfully');
-            } catch (error) {
-                log(`Error navigating to entity: ${error.message}`);
-            }
-        }
-
-        // Initialize CIF when the page loads
-        window.addEventListener('load', initializeCIF);
+        // Recheck status periodically
+        setInterval(updateStatus, 5000);
     </script>
 </body>
 </html>
