@@ -3,33 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamics 365 CIF Testing Dashboard</title>
-    
-    <!-- React and ReactDOM -->
+    <title>CIF Event Handler Dashboard</title>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4">
     <div id="root"></div>
 
     <script>
-        const CIFTestDashboard = () => {
+        const CIFEventDashboard = () => {
             const [status, setStatus] = React.useState('Not Initialized');
             const [logs, setLogs] = React.useState([]);
-            const [selectedFunction, setSelectedFunction] = React.useState('');
-            const [functionParams, setFunctionParams] = React.useState('');
-            const [currentMode, setCurrentMode] = React.useState(null);
+            const [authData, setAuthData] = React.useState(null);
+            const [eventName, setEventName] = React.useState('');
+            const [eventData, setEventData] = React.useState('');
 
-            // Add log entry with timestamp
             const addLog = (message, type = 'info') => {
                 const timestamp = new Date().toLocaleTimeString();
                 setLogs(prev => [...prev, { message, timestamp, type }]);
             };
 
-            // Initialize CIF
+            // Initialize CIF and set up event handlers
             const initializeCIF = async () => {
                 try {
                     setStatus('Initializing...');
@@ -43,12 +38,22 @@
                             if (!window.Microsoft?.CIFramework) {
                                 throw new Error('CIFramework not loaded');
                             }
-                            // Always set to Docked mode (1) on initialization
+
+                            // Set up event listeners
+                            Microsoft.CIFramework.addHandler("onAuthData", (response) => {
+                                setAuthData(response);
+                                addLog(`Received auth data: ${JSON.stringify(response)}`, 'success');
+                            });
+
+                            Microsoft.CIFramework.addHandler("onCustomEvent", (response) => {
+                                addLog(`Received custom event: ${JSON.stringify(response)}`, 'info');
+                            });
+
+                            // Set to Docked mode
                             await Microsoft.CIFramework.setMode(1);
-                            const mode = await Microsoft.CIFramework.getMode();
-                            setCurrentMode(mode);
                             setStatus('Connected');
-                            addLog('CIF initialized successfully', 'success');
+                            addLog('CIF initialized and event handlers registered', 'success');
+
                         } catch (err) {
                             setStatus('Error');
                             addLog(`Initialization error: ${err.message}`, 'error');
@@ -67,63 +72,19 @@
                 }
             };
 
-            // CIF Function definitions
-            const cifFunctions = {
-                getMode: {
-                    name: 'getMode',
-                    description: 'Get current panel mode',
-                    execute: async () => {
-                        const mode = await Microsoft.CIFramework.getMode();
-                        return `Current mode: ${mode} (${['Minimized', 'Docked', 'Hidden'][mode]})`;
-                    }
-                },
-                setMode: {
-                    name: 'setMode',
-                    description: 'Set panel mode (0: Minimized, 1: Docked, 2: Hidden)',
-                    params: true,
-                    execute: async (params) => {
-                        const mode = parseInt(params);
-                        if (isNaN(mode) || mode < 0 || mode > 2) {
-                            throw new Error('Invalid mode. Use 0, 1, or 2');
-                        }
-                        await Microsoft.CIFramework.setMode(mode);
-                        setCurrentMode(mode);
-                        return `Mode set to: ${mode} (${['Minimized', 'Docked', 'Hidden'][mode]})`;
-                    }
-                },
-                getFocusedTab: {
-                    name: 'getFocusedTab',
-                    description: 'Get focused tab information',
-                    execute: async () => {
-                        const tab = await Microsoft.CIFramework.getFocusedTab();
-                        return `Focused tab: ${JSON.stringify(tab)}`;
-                    }
-                },
-                getTabInfo: {
-                    name: 'getTabInfo',
-                    description: 'Get info for specific tab (provide tabId)',
-                    params: true,
-                    execute: async (params) => {
-                        const info = await Microsoft.CIFramework.getTabInfo(params);
-                        return `Tab info: ${JSON.stringify(info)}`;
-                    }
-                }
-            };
-
-            // Execute selected function
-            const executeFunction = async () => {
-                if (!selectedFunction) {
-                    addLog('Please select a function to execute', 'warning');
-                    return;
-                }
-
-                const func = cifFunctions[selectedFunction];
+            // Function to notify Dynamics (simulate sending event from widget to Dynamics)
+            const notifyDynamics = async () => {
                 try {
-                    addLog(`Executing ${func.name}...`);
-                    const result = await func.execute(functionParams);
-                    addLog(`Result: ${result}`, 'success');
+                    if (!eventName || !eventData) {
+                        addLog('Please provide both event name and data', 'warning');
+                        return;
+                    }
+
+                    const data = JSON.parse(eventData);
+                    await Microsoft.CIFramework.notifyEvent(eventName, data);
+                    addLog(`Event "${eventName}" sent to Dynamics`, 'success');
                 } catch (err) {
-                    addLog(`Error: ${err.message}`, 'error');
+                    addLog(`Error sending event: ${err.message}`, 'error');
                 }
             };
 
@@ -147,7 +108,7 @@
                 }, [
                     React.createElement('h1', {
                         className: 'text-2xl font-bold mb-2'
-                    }, 'Dynamics 365 CIF Testing Dashboard'),
+                    }, 'CIF Event Handler Dashboard'),
                     React.createElement('div', {
                         className: 'flex items-center space-x-2'
                     }, [
@@ -164,51 +125,55 @@
                     ])
                 ]),
 
-                // Function Testing Panel
+                // Main Content
                 React.createElement('div', {
-                    key: 'testing-panel',
+                    key: 'content',
                     className: 'grid grid-cols-1 md:grid-cols-2 gap-6'
                 }, [
-                    // Controls
+                    // Event Sender Panel
                     React.createElement('div', {
                         className: 'bg-white rounded-lg shadow-lg p-6'
                     }, [
                         React.createElement('h2', {
                             className: 'text-xl font-semibold mb-4'
-                        }, 'Function Testing'),
+                        }, 'Send Event to Dynamics'),
                         
-                        // Function selector
-                        React.createElement('select', {
-                            className: 'w-full p-2 border rounded mb-4',
-                            value: selectedFunction,
-                            onChange: (e) => setSelectedFunction(e.target.value)
-                        }, [
-                            React.createElement('option', { value: '' }, 'Select a function'),
-                            ...Object.entries(cifFunctions).map(([key, func]) =>
-                                React.createElement('option', {
-                                    key,
-                                    value: key
-                                }, `${func.name} - ${func.description}`)
-                            )
-                        ]),
-
-                        // Parameters input
-                        selectedFunction && cifFunctions[selectedFunction].params &&
+                        // Event Name Input
                         React.createElement('input', {
                             className: 'w-full p-2 border rounded mb-4',
-                            placeholder: 'Enter parameters',
-                            value: functionParams,
-                            onChange: (e) => setFunctionParams(e.target.value)
+                            placeholder: 'Event Name (e.g., widgetEvent)',
+                            value: eventName,
+                            onChange: (e) => setEventName(e.target.value)
                         }),
 
-                        // Execute button
+                        // Event Data Input
+                        React.createElement('textarea', {
+                            className: 'w-full p-2 border rounded mb-4 h-32',
+                            placeholder: 'Event Data (JSON format)',
+                            value: eventData,
+                            onChange: (e) => setEventData(e.target.value)
+                        }),
+
+                        // Send Button
                         React.createElement('button', {
                             className: 'w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700',
-                            onClick: executeFunction
-                        }, 'Execute Function')
+                            onClick: notifyDynamics
+                        }, 'Send Event'),
+
+                        // Auth Data Display
+                        authData && React.createElement('div', {
+                            className: 'mt-4 p-4 bg-gray-50 rounded'
+                        }, [
+                            React.createElement('h3', {
+                                className: 'font-semibold mb-2'
+                            }, 'Received Auth Data:'),
+                            React.createElement('pre', {
+                                className: 'whitespace-pre-wrap'
+                            }, JSON.stringify(authData, null, 2))
+                        ])
                     ]),
 
-                    // Logs
+                    // Logs Panel
                     React.createElement('div', {
                         className: 'bg-white rounded-lg shadow-lg p-6'
                     }, [
@@ -217,7 +182,7 @@
                         }, [
                             React.createElement('h2', {
                                 className: 'text-xl font-semibold'
-                            }, 'Execution Logs'),
+                            }, 'Event Logs'),
                             React.createElement('button', {
                                 className: 'text-gray-500 hover:text-gray-700',
                                 onClick: clearLogs
@@ -250,7 +215,7 @@
 
         // Render the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(CIFTestDashboard));
+        root.render(React.createElement(CIFEventDashboard));
     </script>
 </body>
 </html>
