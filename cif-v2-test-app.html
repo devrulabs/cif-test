@@ -1,152 +1,175 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, Minimize2, Maximize2, Eye, EyeOff } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamics 365 CIF Panel</title>
+    
+    <!-- React and ReactDOM from CDN -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div id="root"></div>
 
-// Constants and Enums
-const DisplayMode = Object.freeze({
-    Minimized: 0,
-    Docked: 1,
-    Hidden: 2
-});
+    <script>
+        // Constants and Enums
+        const DisplayMode = Object.freeze({
+            Minimized: 0,
+            Docked: 1,
+            Hidden: 2
+        });
 
-const DynamicsCIFPanel = () => {
-    const [status, setStatus] = useState('Initializing...');
-    const [currentMode, setCurrentMode] = useState(null);
-    const [error, setError] = useState(null);
-    const [isLoaded, setIsLoaded] = useState(false);
+        // Main Component
+        const DynamicsCIFPanel = () => {
+            const [status, setStatus] = React.useState('Initializing...');
+            const [currentMode, setCurrentMode] = React.useState(null);
+            const [error, setError] = React.useState(null);
+            const [isLoaded, setIsLoaded] = React.useState(false);
 
-    // Configuration
-    const config = {
-        scriptType: 'text/javascript',
-        apiPath: '/webresources/Widget/msdyn_ciLibrary.js'
-    };
+            const getDisplayModeName = (mode) => {
+                return Object.keys(DisplayMode).find(key => DisplayMode[key] === mode);
+            };
 
-    const getDisplayModeName = (mode) => {
-        return Object.keys(DisplayMode).find(key => DisplayMode[key] === mode);
-    };
+            const initializeCIF = async () => {
+                try {
+                    const script = document.createElement('script');
+                    const apiSrc = `${document.referrer}/webresources/Widget/msdyn_ciLibrary.js`;
 
-    const initializeCIF = async () => {
-        try {
-            const script = document.createElement('script');
-            const apiSrc = `${document.referrer}${config.apiPath}`;
+                    script.type = 'text/javascript';
+                    script.src = apiSrc;
 
-            script.type = config.scriptType;
-            script.src = apiSrc;
+                    script.onload = async () => {
+                        const ciFramework = window.Microsoft?.CIFramework;
+                        
+                        if (!ciFramework) {
+                            throw new Error('CIFramework could not be loaded');
+                        }
 
-            script.onload = async () => {
-                const ciFramework = window.Microsoft?.CIFramework;
-                
-                if (!ciFramework) {
-                    throw new Error('CIFramework could not be loaded');
+                        setIsLoaded(true);
+                        const mode = await ciFramework.getMode();
+                        setCurrentMode(mode);
+                        setStatus('Connected');
+                    };
+
+                    script.onerror = () => {
+                        throw new Error(`Could not load the CIF library (${apiSrc})`);
+                    };
+
+                    document.body.appendChild(script);
+                } catch (err) {
+                    setError(err.message);
+                    setStatus('Error');
                 }
-
-                setIsLoaded(true);
-                const mode = await ciFramework.getMode();
-                setCurrentMode(mode);
-                setStatus('Connected');
             };
 
-            script.onerror = () => {
-                throw new Error(`Could not load the CIF library (${apiSrc})`);
+            const handleModeChange = async (newMode) => {
+                try {
+                    const ciFramework = window.Microsoft?.CIFramework;
+                    if (!ciFramework) {
+                        throw new Error('CIFramework not available');
+                    }
+
+                    await ciFramework.setMode(newMode);
+                    setCurrentMode(newMode);
+                    setStatus(`Mode changed to ${getDisplayModeName(newMode)}`);
+                } catch (err) {
+                    setError(err.message);
+                }
             };
 
-            document.querySelector('body').appendChild(script);
-        } catch (err) {
-            setError(err.message);
-            setStatus('Error');
-        }
-    };
+            React.useEffect(() => {
+                initializeCIF();
+            }, []);
 
-    const handleModeChange = async (newMode) => {
-        try {
-            const ciFramework = window.Microsoft?.CIFramework;
-            if (!ciFramework) {
-                throw new Error('CIFramework not available');
-            }
+            const { Minimize2, Maximize2, Eye, EyeOff, AlertCircle, CheckCircle } = lucide;
 
-            await ciFramework.setMode(newMode);
-            setCurrentMode(newMode);
-            setStatus(`Mode changed to ${getDisplayModeName(newMode)}`);
-        } catch (err) {
-            setError(err.message);
-        }
-    };
+            return React.createElement('div', { 
+                className: 'max-w-lg w-full mx-auto p-6 bg-white rounded-lg shadow-lg'
+            }, [
+                React.createElement('div', { 
+                    key: 'header',
+                    className: 'mb-6'
+                }, [
+                    React.createElement('h2', { 
+                        className: 'text-2xl font-bold mb-2'
+                    }, 'Dynamics 365 CIF Panel'),
+                    React.createElement('div', { 
+                        className: 'flex items-center space-x-2'
+                    }, [
+                        React.createElement(status === 'Connected' ? CheckCircle : AlertCircle, {
+                            key: 'status-icon',
+                            className: `w-5 h-5 ${status === 'Connected' ? 'text-green-500' : 'text-yellow-500'}`
+                        }),
+                        React.createElement('span', { 
+                            className: 'text-gray-600'
+                        }, status)
+                    ])
+                ]),
 
-    useEffect(() => {
-        initializeCIF();
-    }, []);
+                error && React.createElement('div', {
+                    key: 'error',
+                    className: 'mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700'
+                }, error),
 
-    return (
-        <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-lg">
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-2">Dynamics 365 CIF Panel</h2>
-                <div className="flex items-center space-x-2">
-                    {status === 'Connected' ? (
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                    ) : (
-                        <AlertCircle className="w-5 h-5 text-yellow-500" />
-                    )}
-                    <span className="text-gray-600">{status}</span>
-                </div>
-            </div>
+                isLoaded && React.createElement('div', {
+                    key: 'controls',
+                    className: 'space-y-4'
+                }, [
+                    React.createElement('div', {
+                        key: 'current-mode',
+                        className: 'p-4 bg-gray-50 rounded-md'
+                    }, [
+                        React.createElement('div', {
+                            className: 'text-sm text-gray-500 mb-2'
+                        }, 'Current Mode'),
+                        React.createElement('div', {
+                            className: 'font-medium'
+                        }, getDisplayModeName(currentMode))
+                    ]),
 
-            {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
-                    {error}
-                </div>
-            )}
+                    React.createElement('div', {
+                        key: 'mode-buttons',
+                        className: 'grid grid-cols-3 gap-4'
+                    }, [
+                        ['Minimized', 'Docked', 'Hidden'].map(mode => {
+                            const modeValue = DisplayMode[mode];
+                            const Icon = mode === 'Minimized' ? Minimize2 : 
+                                       mode === 'Docked' ? Maximize2 : 
+                                       currentMode === DisplayMode.Hidden ? Eye : EyeOff;
 
-            {isLoaded && (
-                <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 rounded-md">
-                        <div className="text-sm text-gray-500 mb-2">Current Mode</div>
-                        <div className="font-medium">{getDisplayModeName(currentMode)}</div>
-                    </div>
+                            return React.createElement('button', {
+                                key: mode,
+                                onClick: () => handleModeChange(modeValue),
+                                className: `p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
+                                    currentMode === modeValue
+                                        ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`
+                            }, [
+                                React.createElement(Icon, {
+                                    key: `${mode}-icon`,
+                                    className: 'w-6 h-6'
+                                }),
+                                React.createElement('span', {
+                                    key: `${mode}-text`
+                                }, mode)
+                            ]);
+                        })
+                    ])
+                ])
+            ]);
+        };
 
-                    <div className="grid grid-cols-3 gap-4">
-                        <button
-                            onClick={() => handleModeChange(DisplayMode.Minimized)}
-                            className={`p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
-                                currentMode === DisplayMode.Minimized
-                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                            <Minimize2 className="w-6 h-6" />
-                            <span>Minimized</span>
-                        </button>
-
-                        <button
-                            onClick={() => handleModeChange(DisplayMode.Docked)}
-                            className={`p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
-                                currentMode === DisplayMode.Docked
-                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                            <Maximize2 className="w-6 h-6" />
-                            <span>Docked</span>
-                        </button>
-
-                        <button
-                            onClick={() => handleModeChange(DisplayMode.Hidden)}
-                            className={`p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
-                                currentMode === DisplayMode.Hidden
-                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                            {currentMode === DisplayMode.Hidden ? (
-                                <Eye className="w-6 h-6" />
-                            ) : (
-                                <EyeOff className="w-6 h-6" />
-                            )}
-                            <span>Hidden</span>
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default DynamicsCIFPanel;
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(DynamicsCIFPanel));
+    </script>
+</body>
+</html>
