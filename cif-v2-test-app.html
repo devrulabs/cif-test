@@ -1,81 +1,152 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>CIF Console Controls</title>
-</head>
-<body>
-    <div style="padding: 20px; font-family: monospace;">
-        Open browser console (F12) and use these commands:
-        <ul>
-            <li>cifDock()</li>
-            <li>cifMinimize()</li>
-            <li>cifHide()</li>
-            <li>cifGetMode()</li>
-        </ul>
-    </div>
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle, Minimize2, Maximize2, Eye, EyeOff } from 'lucide-react';
 
-    <script>
-        // Initialize CIF
-        const script = document.createElement("script");
-        const apiSrc = `${document.referrer}/webresources/Widget/msdyn_ciLibrary.js`;
-        
-        // Make functions globally available
-        window.DisplayMode = Object.freeze({
-            Minimized: 0,
-            Docked: 1,
-            Hidden: 2
-        });
+// Constants and Enums
+const DisplayMode = Object.freeze({
+    Minimized: 0,
+    Docked: 1,
+    Hidden: 2
+});
 
-        // Helper to get mode name
-        window.getModeName = (mode) => {
-            return Object.keys(DisplayMode).find(key => DisplayMode[key] === mode) || 'Unknown';
-        };
+const DynamicsCIFPanel = () => {
+    const [status, setStatus] = useState('Initializing...');
+    const [currentMode, setCurrentMode] = useState(null);
+    const [error, setError] = useState(null);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-        // Console-friendly functions
-        window.cifGetMode = async () => {
-            try {
-                const mode = await window.Microsoft?.CIFramework?.getMode();
-                console.log(`Current mode: ${getModeName(mode)} (${mode})`);
-                return mode;
-            } catch (error) {
-                console.error('Error getting mode:', error);
+    // Configuration
+    const config = {
+        scriptType: 'text/javascript',
+        apiPath: '/webresources/Widget/msdyn_ciLibrary.js'
+    };
+
+    const getDisplayModeName = (mode) => {
+        return Object.keys(DisplayMode).find(key => DisplayMode[key] === mode);
+    };
+
+    const initializeCIF = async () => {
+        try {
+            const script = document.createElement('script');
+            const apiSrc = `${document.referrer}${config.apiPath}`;
+
+            script.type = config.scriptType;
+            script.src = apiSrc;
+
+            script.onload = async () => {
+                const ciFramework = window.Microsoft?.CIFramework;
+                
+                if (!ciFramework) {
+                    throw new Error('CIFramework could not be loaded');
+                }
+
+                setIsLoaded(true);
+                const mode = await ciFramework.getMode();
+                setCurrentMode(mode);
+                setStatus('Connected');
+            };
+
+            script.onerror = () => {
+                throw new Error(`Could not load the CIF library (${apiSrc})`);
+            };
+
+            document.querySelector('body').appendChild(script);
+        } catch (err) {
+            setError(err.message);
+            setStatus('Error');
+        }
+    };
+
+    const handleModeChange = async (newMode) => {
+        try {
+            const ciFramework = window.Microsoft?.CIFramework;
+            if (!ciFramework) {
+                throw new Error('CIFramework not available');
             }
-        };
 
-        window.cifSetMode = async (mode) => {
-            try {
-                await window.Microsoft?.CIFramework?.setMode(mode);
-                console.log(`Set mode to: ${getModeName(mode)} (${mode})`);
-                return true;
-            } catch (error) {
-                console.error('Error setting mode:', error);
-                return false;
-            }
-        };
+            await ciFramework.setMode(newMode);
+            setCurrentMode(newMode);
+            setStatus(`Mode changed to ${getDisplayModeName(newMode)}`);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
 
-        // Convenience functions
-        window.cifDock = () => cifSetMode(DisplayMode.Docked);
-        window.cifMinimize = () => cifSetMode(DisplayMode.Minimized);
-        window.cifHide = () => cifSetMode(DisplayMode.Hidden);
+    useEffect(() => {
+        initializeCIF();
+    }, []);
 
-        // Load CIF library
-        script.type = "text/javascript";
-        script.src = apiSrc;
-        document.body.appendChild(script);
+    return (
+        <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-lg">
+            <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">Dynamics 365 CIF Panel</h2>
+                <div className="flex items-center space-x-2">
+                    {status === 'Connected' ? (
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                    ) : (
+                        <AlertCircle className="w-5 h-5 text-yellow-500" />
+                    )}
+                    <span className="text-gray-600">{status}</span>
+                </div>
+            </div>
 
-        script.onload = () => {
-            console.log('CIF library loaded successfully. Available commands:');
-            console.log('- cifDock() - Dock the panel');
-            console.log('- cifMinimize() - Minimize the panel');
-            console.log('- cifHide() - Hide the panel');
-            console.log('- cifGetMode() - Get current mode');
-            cifGetMode(); // Show initial mode
-        };
+            {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+                    {error}
+                </div>
+            )}
 
-        script.onerror = () => {
-            console.error(`Failed to load CIF library from: ${apiSrc}`);
-        };
-    </script>
-</body>
-</html>
+            {isLoaded && (
+                <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-md">
+                        <div className="text-sm text-gray-500 mb-2">Current Mode</div>
+                        <div className="font-medium">{getDisplayModeName(currentMode)}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                        <button
+                            onClick={() => handleModeChange(DisplayMode.Minimized)}
+                            className={`p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
+                                currentMode === DisplayMode.Minimized
+                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        >
+                            <Minimize2 className="w-6 h-6" />
+                            <span>Minimized</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleModeChange(DisplayMode.Docked)}
+                            className={`p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
+                                currentMode === DisplayMode.Docked
+                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        >
+                            <Maximize2 className="w-6 h-6" />
+                            <span>Docked</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleModeChange(DisplayMode.Hidden)}
+                            className={`p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
+                                currentMode === DisplayMode.Hidden
+                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                        >
+                            {currentMode === DisplayMode.Hidden ? (
+                                <Eye className="w-6 h-6" />
+                            ) : (
+                                <EyeOff className="w-6 h-6" />
+                            )}
+                            <span>Hidden</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default DynamicsCIFPanel;
