@@ -3,168 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamics 365 CIF Panel</title>
+    <title>Dynamics 365 CIF Testing Dashboard</title>
     
-    <!-- React and ReactDOM from CDN -->
+    <!-- React and ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen p-4">
     <div id="root"></div>
 
     <script>
-        // Constants and Enums
-        const DisplayMode = Object.freeze({
-            Minimized: 0,
-            Docked: 1,
-            Hidden: 2
-        });
-
-        // Icon Components
-        const Icons = {
-            CheckCircle: ({ className }) => React.createElement('svg', {
-                xmlns: 'http://www.w3.org/2000/svg',
-                className,
-                fill: 'none',
-                viewBox: '0 0 24 24',
-                stroke: 'currentColor'
-            }, React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-            })),
-
-            AlertCircle: ({ className }) => React.createElement('svg', {
-                xmlns: 'http://www.w3.org/2000/svg',
-                className,
-                fill: 'none',
-                viewBox: '0 0 24 24',
-                stroke: 'currentColor'
-            }, React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-            })),
-
-            Minimize: ({ className }) => React.createElement('svg', {
-                xmlns: 'http://www.w3.org/2000/svg',
-                className,
-                fill: 'none',
-                viewBox: '0 0 24 24',
-                stroke: 'currentColor'
-            }, React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M19 9l-7 7-7-7'
-            })),
-
-            Maximize: ({ className }) => React.createElement('svg', {
-                xmlns: 'http://www.w3.org/2000/svg',
-                className,
-                fill: 'none',
-                viewBox: '0 0 24 24',
-                stroke: 'currentColor'
-            }, React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'
-            })),
-
-            EyeOff: ({ className }) => React.createElement('svg', {
-                xmlns: 'http://www.w3.org/2000/svg',
-                className,
-                fill: 'none',
-                viewBox: '0 0 24 24',
-                stroke: 'currentColor'
-            }, React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
-            })),
-
-            Eye: ({ className }) => React.createElement('svg', {
-                xmlns: 'http://www.w3.org/2000/svg',
-                className,
-                fill: 'none',
-                viewBox: '0 0 24 24',
-                stroke: 'currentColor'
-            }, React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-            }), React.createElement('path', {
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                strokeWidth: 2,
-                d: 'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-            }))
-        };
-
-        // Main Component
-        const DynamicsCIFPanel = () => {
-            const [status, setStatus] = React.useState('Initializing...');
+        const CIFTestDashboard = () => {
+            const [status, setStatus] = React.useState('Not Initialized');
+            const [logs, setLogs] = React.useState([]);
+            const [selectedFunction, setSelectedFunction] = React.useState('');
+            const [functionParams, setFunctionParams] = React.useState('');
             const [currentMode, setCurrentMode] = React.useState(null);
-            const [error, setError] = React.useState(null);
-            const [isLoaded, setIsLoaded] = React.useState(false);
 
-            const getDisplayModeName = (mode) => {
-                return Object.keys(DisplayMode).find(key => DisplayMode[key] === mode);
+            // Add log entry with timestamp
+            const addLog = (message, type = 'info') => {
+                const timestamp = new Date().toLocaleTimeString();
+                setLogs(prev => [...prev, { message, timestamp, type }]);
             };
 
+            // Initialize CIF
             const initializeCIF = async () => {
                 try {
+                    setStatus('Initializing...');
                     const script = document.createElement('script');
                     const apiSrc = `${document.referrer}/webresources/Widget/msdyn_ciLibrary.js`;
-
                     script.type = 'text/javascript';
                     script.src = apiSrc;
 
                     script.onload = async () => {
-                        const ciFramework = window.Microsoft?.CIFramework;
-                        
-                        if (!ciFramework) {
-                            throw new Error('CIFramework could not be loaded');
+                        try {
+                            if (!window.Microsoft?.CIFramework) {
+                                throw new Error('CIFramework not loaded');
+                            }
+                            // Always set to Docked mode (1) on initialization
+                            await Microsoft.CIFramework.setMode(1);
+                            const mode = await Microsoft.CIFramework.getMode();
+                            setCurrentMode(mode);
+                            setStatus('Connected');
+                            addLog('CIF initialized successfully', 'success');
+                        } catch (err) {
+                            setStatus('Error');
+                            addLog(`Initialization error: ${err.message}`, 'error');
                         }
-
-                        setIsLoaded(true);
-                        const mode = await ciFramework.getMode();
-                        setCurrentMode(mode);
-                        setStatus('Connected');
                     };
 
                     script.onerror = () => {
-                        throw new Error(`Could not load the CIF library (${apiSrc})`);
+                        setStatus('Error');
+                        addLog(`Failed to load CIF library from ${apiSrc}`, 'error');
                     };
 
                     document.body.appendChild(script);
                 } catch (err) {
-                    setError(err.message);
                     setStatus('Error');
+                    addLog(`Initialization error: ${err.message}`, 'error');
                 }
             };
 
-            const handleModeChange = async (newMode) => {
-                try {
-                    const ciFramework = window.Microsoft?.CIFramework;
-                    if (!ciFramework) {
-                        throw new Error('CIFramework not available');
+            // CIF Function definitions
+            const cifFunctions = {
+                getMode: {
+                    name: 'getMode',
+                    description: 'Get current panel mode',
+                    execute: async () => {
+                        const mode = await Microsoft.CIFramework.getMode();
+                        return `Current mode: ${mode} (${['Minimized', 'Docked', 'Hidden'][mode]})`;
                     }
-
-                    await ciFramework.setMode(newMode);
-                    setCurrentMode(newMode);
-                    setStatus(`Mode changed to ${getDisplayModeName(newMode)}`);
-                } catch (err) {
-                    setError(err.message);
+                },
+                setMode: {
+                    name: 'setMode',
+                    description: 'Set panel mode (0: Minimized, 1: Docked, 2: Hidden)',
+                    params: true,
+                    execute: async (params) => {
+                        const mode = parseInt(params);
+                        if (isNaN(mode) || mode < 0 || mode > 2) {
+                            throw new Error('Invalid mode. Use 0, 1, or 2');
+                        }
+                        await Microsoft.CIFramework.setMode(mode);
+                        setCurrentMode(mode);
+                        return `Mode set to: ${mode} (${['Minimized', 'Docked', 'Hidden'][mode]})`;
+                    }
+                },
+                getFocusedTab: {
+                    name: 'getFocusedTab',
+                    description: 'Get focused tab information',
+                    execute: async () => {
+                        const tab = await Microsoft.CIFramework.getFocusedTab();
+                        return `Focused tab: ${JSON.stringify(tab)}`;
+                    }
+                },
+                getTabInfo: {
+                    name: 'getTabInfo',
+                    description: 'Get info for specific tab (provide tabId)',
+                    params: true,
+                    execute: async (params) => {
+                        const info = await Microsoft.CIFramework.getTabInfo(params);
+                        return `Tab info: ${JSON.stringify(info)}`;
+                    }
                 }
+            };
+
+            // Execute selected function
+            const executeFunction = async () => {
+                if (!selectedFunction) {
+                    addLog('Please select a function to execute', 'warning');
+                    return;
+                }
+
+                const func = cifFunctions[selectedFunction];
+                try {
+                    addLog(`Executing ${func.name}...`);
+                    const result = await func.execute(functionParams);
+                    addLog(`Result: ${result}`, 'success');
+                } catch (err) {
+                    addLog(`Error: ${err.message}`, 'error');
+                }
+            };
+
+            // Clear logs
+            const clearLogs = () => {
+                setLogs([]);
+                addLog('Logs cleared');
             };
 
             React.useEffect(() => {
@@ -172,94 +138,119 @@
             }, []);
 
             return React.createElement('div', { 
-                className: 'max-w-lg w-full mx-auto p-6 bg-white rounded-lg shadow-lg'
+                className: 'max-w-6xl mx-auto'
             }, [
-                React.createElement('div', { 
+                // Header
+                React.createElement('div', {
                     key: 'header',
-                    className: 'mb-6'
+                    className: 'bg-white rounded-lg shadow-lg p-6 mb-6'
                 }, [
-                    React.createElement('h2', { 
+                    React.createElement('h1', {
                         className: 'text-2xl font-bold mb-2'
-                    }, 'Dynamics 365 CIF Panel'),
-                    React.createElement('div', { 
+                    }, 'Dynamics 365 CIF Testing Dashboard'),
+                    React.createElement('div', {
                         className: 'flex items-center space-x-2'
                     }, [
-                        React.createElement(status === 'Connected' ? Icons.CheckCircle : Icons.AlertCircle, {
-                            key: 'status-icon',
-                            className: `w-5 h-5 ${status === 'Connected' ? 'text-green-500' : 'text-yellow-500'}`
+                        React.createElement('span', {
+                            className: `h-3 w-3 rounded-full ${
+                                status === 'Connected' ? 'bg-green-500' :
+                                status === 'Error' ? 'bg-red-500' :
+                                'bg-yellow-500'
+                            }`
                         }),
-                        React.createElement('span', { 
+                        React.createElement('span', {
                             className: 'text-gray-600'
-                        }, status)
+                        }, `Status: ${status}`)
                     ])
                 ]),
 
-                error && React.createElement('div', {
-                    key: 'error',
-                    className: 'mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700'
-                }, error),
-
-                isLoaded && React.createElement('div', {
-                    key: 'controls',
-                    className: 'space-y-4'
+                // Function Testing Panel
+                React.createElement('div', {
+                    key: 'testing-panel',
+                    className: 'grid grid-cols-1 md:grid-cols-2 gap-6'
                 }, [
+                    // Controls
                     React.createElement('div', {
-                        key: 'current-mode',
-                        className: 'p-4 bg-gray-50 rounded-md'
+                        className: 'bg-white rounded-lg shadow-lg p-6'
                     }, [
-                        React.createElement('div', {
-                            className: 'text-sm text-gray-500 mb-2'
-                        }, 'Current Mode'),
-                        React.createElement('div', {
-                            className: 'font-medium'
-                        }, getDisplayModeName(currentMode))
+                        React.createElement('h2', {
+                            className: 'text-xl font-semibold mb-4'
+                        }, 'Function Testing'),
+                        
+                        // Function selector
+                        React.createElement('select', {
+                            className: 'w-full p-2 border rounded mb-4',
+                            value: selectedFunction,
+                            onChange: (e) => setSelectedFunction(e.target.value)
+                        }, [
+                            React.createElement('option', { value: '' }, 'Select a function'),
+                            ...Object.entries(cifFunctions).map(([key, func]) =>
+                                React.createElement('option', {
+                                    key,
+                                    value: key
+                                }, `${func.name} - ${func.description}`)
+                            )
+                        ]),
+
+                        // Parameters input
+                        selectedFunction && cifFunctions[selectedFunction].params &&
+                        React.createElement('input', {
+                            className: 'w-full p-2 border rounded mb-4',
+                            placeholder: 'Enter parameters',
+                            value: functionParams,
+                            onChange: (e) => setFunctionParams(e.target.value)
+                        }),
+
+                        // Execute button
+                        React.createElement('button', {
+                            className: 'w-full bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700',
+                            onClick: executeFunction
+                        }, 'Execute Function')
                     ]),
 
+                    // Logs
                     React.createElement('div', {
-                        key: 'mode-buttons',
-                        className: 'grid grid-cols-3 gap-4'
+                        className: 'bg-white rounded-lg shadow-lg p-6'
                     }, [
-                        {
-                            mode: 'Minimized',
-                            icon: Icons.Minimize,
-                            value: DisplayMode.Minimized
-                        },
-                        {
-                            mode: 'Docked',
-                            icon: Icons.Maximize,
-                            value: DisplayMode.Docked
-                        },
-                        {
-                            mode: 'Hidden',
-                            icon: currentMode === DisplayMode.Hidden ? Icons.Eye : Icons.EyeOff,
-                            value: DisplayMode.Hidden
-                        }
-                    ].map(({ mode, icon: Icon, value }) => 
-                        React.createElement('button', {
-                            key: mode,
-                            onClick: () => handleModeChange(value),
-                            className: `p-4 rounded-md flex flex-col items-center justify-center space-y-2 ${
-                                currentMode === value
-                                    ? 'bg-purple-100 text-purple-700 border-2 border-purple-300'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`
+                        React.createElement('div', {
+                            className: 'flex justify-between items-center mb-4'
                         }, [
-                            React.createElement(Icon, {
-                                key: `${mode}-icon`,
-                                className: 'w-6 h-6'
-                            }),
-                            React.createElement('span', {
-                                key: `${mode}-text`
-                            }, mode)
-                        ])
-                    ))
+                            React.createElement('h2', {
+                                className: 'text-xl font-semibold'
+                            }, 'Execution Logs'),
+                            React.createElement('button', {
+                                className: 'text-gray-500 hover:text-gray-700',
+                                onClick: clearLogs
+                            }, 'Clear Logs')
+                        ]),
+                        React.createElement('div', {
+                            className: 'h-96 overflow-y-auto space-y-2'
+                        }, logs.map((log, index) =>
+                            React.createElement('div', {
+                                key: index,
+                                className: `p-2 rounded ${
+                                    log.type === 'error' ? 'bg-red-50 text-red-700' :
+                                    log.type === 'success' ? 'bg-green-50 text-green-700' :
+                                    log.type === 'warning' ? 'bg-yellow-50 text-yellow-700' :
+                                    'bg-gray-50 text-gray-700'
+                                }`
+                            }, [
+                                React.createElement('span', {
+                                    className: 'text-xs opacity-75'
+                                }, log.timestamp),
+                                React.createElement('span', {
+                                    className: 'ml-2'
+                                }, log.message)
+                            ])
+                        ))
+                    ])
                 ])
             ]);
         };
 
         // Render the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(DynamicsCIFPanel));
+        root.render(React.createElement(CIFTestDashboard));
     </script>
 </body>
 </html>
