@@ -2,139 +2,80 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Microsoft Dynamics CIF Tester</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <title>CIF Console Controls</title>
 </head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <h1 class="text-2xl font-bold mb-6">Microsoft Dynamics CIF Tester</h1>
-            
-            <!-- Status Panel -->
-            <div class="mb-6 p-4 bg-gray-50 rounded">
-                <h2 class="text-lg font-semibold mb-2">CIF Status</h2>
-                <p id="cifStatus" class="text-gray-600">Initializing...</p>
-            </div>
-
-            <!-- Control Panel -->
-            <div class="space-y-4">
-                <h2 class="text-lg font-semibold mb-2">Controls</h2>
-                
-                <!-- Display Mode Controls -->
-                <div class="space-y-2">
-                    <p class="font-medium">Display Mode:</p>
-                    <div class="space-x-2">
-                        <button onclick="setMode(0)" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                            Minimize
-                        </button>
-                        <button onclick="setMode(1)" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                            Dock
-                        </button>
-                        <button onclick="setMode(2)" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
-                            Hide
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Get Current Mode -->
-                <div>
-                    <button onclick="getCurrentMode()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-                        Get Current Mode
-                    </button>
-                </div>
-            </div>
-
-            <!-- Log Panel -->
-            <div class="mt-6">
-                <h2 class="text-lg font-semibold mb-2">Log</h2>
-                <div id="logPanel" class="bg-gray-800 text-green-400 p-4 rounded h-48 overflow-y-auto font-mono text-sm">
-                </div>
-            </div>
-        </div>
+<body>
+    <div style="padding: 20px; font-family: monospace;">
+        Open browser console (F12) and use these commands:
+        <ul>
+            <li>cifDock()</li>
+            <li>cifMinimize()</li>
+            <li>cifHide()</li>
+            <li>cifGetMode()</li>
+        </ul>
     </div>
 
     <script>
-        // Initialize logging
-        function log(message, isError = false) {
-            const logPanel = document.getElementById('logPanel');
-            const entry = document.createElement('div');
-            entry.className = isError ? 'text-red-400' : 'text-green-400';
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            logPanel.appendChild(entry);
-            logPanel.scrollTop = logPanel.scrollHeight;
-        }
-
-        // Update status
-        function updateStatus(message) {
-            document.getElementById('cifStatus').textContent = message;
-        }
-
-        // Display mode enum
-        const DisplayMode = Object.freeze({
+        // Initialize CIF
+        const script = document.createElement("script");
+        const apiSrc = `${document.referrer}/webresources/Widget/msdyn_ciLibrary.js`;
+        
+        // Make functions globally available
+        window.DisplayMode = Object.freeze({
             Minimized: 0,
             Docked: 1,
             Hidden: 2
         });
 
-        // Get mode name from value
-        function getModeName(modeValue) {
-            return Object.keys(DisplayMode).find(key => DisplayMode[key] === modeValue) || 'Unknown';
-        }
+        // Helper to get mode name
+        window.getModeName = (mode) => {
+            return Object.keys(DisplayMode).find(key => DisplayMode[key] === mode) || 'Unknown';
+        };
 
-        // Initialize CIF
-        const script = document.createElement("script");
-        const apiSrc = `${document.referrer}/webresources/Widget/msdyn_ciLibrary.js`;
+        // Console-friendly functions
+        window.cifGetMode = async () => {
+            try {
+                const mode = await window.Microsoft?.CIFramework?.getMode();
+                console.log(`Current mode: ${getModeName(mode)} (${mode})`);
+                return mode;
+            } catch (error) {
+                console.error('Error getting mode:', error);
+            }
+        };
+
+        window.cifSetMode = async (mode) => {
+            try {
+                await window.Microsoft?.CIFramework?.setMode(mode);
+                console.log(`Set mode to: ${getModeName(mode)} (${mode})`);
+                return true;
+            } catch (error) {
+                console.error('Error setting mode:', error);
+                return false;
+            }
+        };
+
+        // Convenience functions
+        window.cifDock = () => cifSetMode(DisplayMode.Docked);
+        window.cifMinimize = () => cifSetMode(DisplayMode.Minimized);
+        window.cifHide = () => cifSetMode(DisplayMode.Hidden);
+
+        // Load CIF library
         script.type = "text/javascript";
         script.src = apiSrc;
         document.body.appendChild(script);
 
         script.onload = () => {
-            log('CIF library loaded successfully');
-            updateStatus('CIF library loaded and ready');
-            getCurrentMode(); // Get initial mode
+            console.log('CIF library loaded successfully. Available commands:');
+            console.log('- cifDock() - Dock the panel');
+            console.log('- cifMinimize() - Minimize the panel');
+            console.log('- cifHide() - Hide the panel');
+            console.log('- cifGetMode() - Get current mode');
+            cifGetMode(); // Show initial mode
         };
 
         script.onerror = () => {
-            const errorMsg = `Could not load the Microsoft Dynamics CIF library (${apiSrc})`;
-            log(errorMsg, true);
-            updateStatus('Error: CIF library failed to load');
+            console.error(`Failed to load CIF library from: ${apiSrc}`);
         };
-
-        // CIF Functions
-        async function getCurrentMode() {
-            try {
-                const ciFramework = window.Microsoft?.CIFramework;
-                if (!ciFramework) {
-                    throw new Error('CIF not initialized');
-                }
-                
-                const currentMode = await ciFramework.getMode();
-                const modeName = getModeName(currentMode);
-                log(`Current mode: ${modeName} (${currentMode})`);
-                updateStatus(`Current mode: ${modeName}`);
-            } catch (error) {
-                log(`Error getting current mode: ${error.message}`, true);
-            }
-        }
-
-        async function setMode(mode) {
-            try {
-                const ciFramework = window.Microsoft?.CIFramework;
-                if (!ciFramework) {
-                    throw new Error('CIF not initialized');
-                }
-
-                const modeName = getModeName(mode);
-                log(`Setting mode to: ${modeName}`);
-                
-                await ciFramework.setMode(mode);
-                log(`Successfully set mode to: ${modeName}`);
-                updateStatus(`Current mode: ${modeName}`);
-            } catch (error) {
-                log(`Error setting mode: ${error.message}`, true);
-            }
-        }
     </script>
 </body>
 </html>
